@@ -293,4 +293,9 @@ if (WITH_LITE)
     include(external/lite)
 endif (WITH_LITE)
 
+if(WITH_TVM)
+    include(external/tvm)           # download, build, install tvm
+    list(APPEND third_party_deps extern_tvm)
+endif()
+
 add_custom_target(third_party DEPENDS ${third_party_deps})

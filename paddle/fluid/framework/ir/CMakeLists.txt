@@ -8,6 +8,7 @@ add_subdirectory(memory_optimize_pass)
 add_subdirectory(multi_devices_graph_pass)
 if(NOT APPLE AND NOT WIN32 AND WITH_GPU)
     add_subdirectory(fusion_group)
+    add_subdirectory(tvm_optimize_pass)
 endif()
 
 # Usage: pass_library(target inference) will append to paddle_inference_pass.h
