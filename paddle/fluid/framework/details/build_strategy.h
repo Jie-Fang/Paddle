@@ -89,6 +89,7 @@ struct BuildStrategy {
   bool fuse_bn_act_ops_{false};
   bool fuse_elewise_add_act_ops_{false};
   bool enable_auto_fusion_{false};
+  bool enable_tvm_optimize_{false};
   // Fuse_all_optimizer_ops and fuse_all_reduce_ops require that gradients
   // should not be sparse types
   boost::optional<bool> fuse_all_optimizer_ops_{false};

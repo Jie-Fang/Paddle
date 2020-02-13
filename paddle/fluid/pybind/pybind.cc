@@ -2039,6 +2039,27 @@ All parameter, weight, gradient are variables in Paddle.
                         build_strategy.enable_auto_fusion = True
                     )DOC")
       .def_property(
+          "enable_tvm_optimize",
+          [](const BuildStrategy &self) { return self.enable_tvm_optimize_; },
+          [](BuildStrategy &self, bool b) {
+            PADDLE_ENFORCE_EQ(!self.IsFinalized(), true,
+                              platform::errors::PreconditionNotMet(
+                                  "BuildStrategy is finalized."));
+            self.enable_tvm_optimize_ = b;
+          },
+          R"DOC((bool, optional): Whether to enable tvm optimize on a graph.
+                Now we only support support fusing subgraph that composed of
+                elementwise-like operators, such as elementwise_add/mul
+                without broadcast and activations.
+                 
+                Examples:
+                    .. code-block:: python
+                    
+                        import paddle.fluid as fluid
+                        build_strategy = fluid.BuildStrategy()
+                        build_strategy.enable_tvm_opimize = True
+                    )DOC")
+      .def_property(
           "fuse_relu_depthwise_conv",
           [](const BuildStrategy &self) {
             return self.fuse_relu_depthwise_conv_;

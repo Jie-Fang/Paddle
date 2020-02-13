@@ -63,6 +63,7 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
     AppendPassToUseNgraph("ngraph_subgraph_pass");
 
     AppendOpFusePasses();
+    AppendTVMOptimizePass();
     AppendPrintGraphPass("graph_viz_pass", "_fused_graph");
 
     AppendMultiDevPass();
@@ -184,6 +185,12 @@ class ParallelExecutorPassBuilder : public ir::PassBuilder {
       AppendPass("fuse_sgd_op_pass");
       AppendPass("fuse_momentum_op_pass");
     }
+  }
+
+  void AppendTVMOptimizePass() {
+#if (defined PADDLE_WITH_CUDA) && (defined PADDLE_WITH_TVM)
+    AppendPassWithCheck(strategy_.enable_tvm_optimize_, "tvm_optimize_pass");
+#endif
   }
 
   void SetCollectiveContext() const {
@@ -385,6 +392,13 @@ ir::Graph *BuildStrategy::Apply(ir::Graph *graph,
                         "GPU, skipped.";
         continue;
       }
+    } else if (pass->Type() == "tvm_optimize_pass") {
+      pass->Set<bool>("use_gpu", new bool(use_cuda));
+      if (!use_cuda) {
+        LOG(WARNING)
+            << "tvm_optimize_pass is only supported on GPU currently, skipped.";
+        continue;
+      }
     } else if (pass->Type() == "mkldnn_placement_pass") {
       pass->Set("mkldnn_enabled_op_types",
                 new std::unordered_set<std::string>(mkldnn_enabled_op_types_));
@@ -438,4 +452,7 @@ USE_PASS(ngraph_subgraph_pass);
 #endif
 #ifdef PADDLE_WITH_CUDA
 USE_PASS(fusion_group_pass);
+#endif
+#if (defined PADDLE_WITH_CUDA) && (defined PADLLE_WITH_TVM)
+USE_PASS(tvm_optimize_pass);
 #endif
