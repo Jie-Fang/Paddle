@@ -11,8 +11,8 @@ limitations under the License. */
 
 #include "paddle/fluid/operators/tvm_op.h"
 
-namespace ops = paddle::operator;
+namespace ops = paddle::operators;
 namespace plat = paddle::platform;
 REGISTER_OP_CUDA_KERNEL(
-    tvm_op, ops::TVMOpKernel<paddle::platform::CUDADeviceContext, double>,
-    ops::TVMOpKernel<paddle::platform::CUDADeviceContext, float>);
+    tvm, ops::TVMKernel<paddle::platform::CUDADeviceContext, double>,
+    ops::TVMKernel<paddle::platform::CUDADeviceContext, float>);

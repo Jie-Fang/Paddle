@@ -74,4 +74,4 @@ It is used to execute TVM generated codes)DOC");
 }  // namespace paddle
 
 namespace ops = paddle::operators;
-REGISTER_OPERATOR(tvm_op, ops::TVMOp, ops::TVMOpMaker);
+REGISTER_OPERATOR(tvm, ops::TVMOp, ops::TVMOpMaker);

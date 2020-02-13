@@ -30,8 +30,8 @@ class TVMOptimizePass : public Pass {
   void ApplyImpl(Graph* graph) const override;
 
  private:
-  std::vector<tvm::relay::Function> ConvertToTVMRelay(
-      const std::vector<fusion_group::SubGraph>& subgraphs) const;
+  tvm::relay::Function ConvertToTVMRelay(
+      fusion_group::SubGraph* subgraph) const;
   std::string GetTVMOpName(std::string) const;
   tvm::runtime::DataType GetTVMDataType(proto::VarType::Type dtype) const;
   std::string GenerateCode(tvm::relay::Function func) const;

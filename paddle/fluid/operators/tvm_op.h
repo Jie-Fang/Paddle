@@ -18,6 +18,7 @@ limitations under the License. */
 #include <string>
 #include <vector>
 #include "paddle/fluid/framework/op_registry.h"
+#include "paddle/fluid/platform/device_context.h"
 #ifdef PADDLE_WITH_CUDA
 #include "paddle/fluid/platform/dynload/cuda_driver.h"
 #include "paddle/fluid/platform/dynload/nvrtc.h"
@@ -27,12 +28,12 @@ namespace paddle {
 namespace operators {
 
 template <typename DeviceContext, typename T>
-class TVMOpKernel : public framework::OpKernel<T> {
+class TVMKernel : public framework::OpKernel<T> {
  public:
   void Compute(const framework::ExecutionContext& ctx) const override {
     auto ins = ctx.MultiInput<framework::LoDTensor>("Inputs");
     auto outs = ctx.MultiOutput<framework::LoDTensor>("Outputs");
-    std::string ptx = ctx.MultiOutput<framework::LoDTensor>("generated_code");
+    std::string ptx = ctx.Attr<std::string>("generated_code");
 
     size_t num_ins = ins.size();
     size_t num_outs = outs.size();
@@ -47,7 +48,7 @@ class TVMOpKernel : public framework::OpKernel<T> {
     args.push_back(&n);
     std::vector<const T*> ptrs(num_ins + num_outs);
     for (size_t i = 0; i < num_ins; ++i) {
-      ptr[i] = ins[i]->data<T>();
+      ptrs[i] = ins[i]->data<T>();
       args.push_back(&ptrs[i]);
     }
     for (size_t j = 0; j < num_outs; ++j) {
@@ -59,26 +60,27 @@ class TVMOpKernel : public framework::OpKernel<T> {
 
     CUdevice cuDevice;
     CUcontext context;
+    CUmodule module;
     CUfunction kernel;
     cuInit(0);
     cuDeviceGet(&cuDevice, 0);
     cuCtxCreate(&context, 0, cuDevice);
-    cuModuleLoadDataEx(&module, ptx.c_str(), 0, 0, 0)
-        cuModuleGetFuction(&kernel, module, "tvm_op");
+    platform::dynload::cuModuleLoadData(&module, ptx.c_str());
+    platform::dynload::cuModuleGetFunction(&kernel, module, "tvm_op");
 
-    int max_threads = dev_ctx->GetMaxPhysicalThreadCount();
+    int max_threads = dev_ctx.GetMaxPhysicalThreadCount();
     int max_blocks = std::max(max_threads / 1024, 1);
     int num_blocks = std::min(
         max_blocks, (static_cast<int>(n) + max_threads - 1) / max_threads);
     PADDLE_ENFORCE_EQ(
-        dynload::cuLaunchKernel(kernel, num_blocks, 1, 1,  // grid dim
-                                num_threads_, 1, 1,        // block dim
-                                0,                         // shared memory
-                                dev_ctx->stream(),         // stream
-                                args->data(),              // arguments
-                                nullptr),
+        platform::dynload::cuLaunchKernel(kernel, num_blocks, 1, 1,  // grid dim
+                                          1024, 1, 1,        // block dim
+                                          0,                 // shared memory
+                                          dev_ctx.stream(),  // stream
+                                          args.data(),       // arguments
+                                          nullptr),
         CUDA_SUCCESS,
-        errors::External(
+        platform::errors::External(
             "Fail to launch tvm generated kernel in cuLaunchKernel."));
   }
 };
