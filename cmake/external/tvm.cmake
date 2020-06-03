@@ -17,7 +17,7 @@ INCLUDE(ExternalProject)
 SET(TVM_PREFIX_DIR ${THIRD_PARTY_PATH}/tvm)
 SET(TVM_INSTALL_DIR ${THIRD_PARTY_PATH}/install/tvm)
 SET(TVM_INCLUDE_DIR "${TVM_INSTALL_DIR}/include" CACHE PATH "tvm include directory." FORCE)
-SET(TVM_LIBRARIES "{TVM_INSTALL_DIR}/lib/libtvm.so" CACHE FILEPATH "tvm library." FORCE)
+SET(TVM_LIBRARIES "{TVM_INSTALL_DIR}/lib" CACHE FILEPATH "tvm library." FORCE)
 SET(TVM_REPOSITORY https://github.com/apache/incubator-tvm.git)
 SET(TVM_TAG master)
 

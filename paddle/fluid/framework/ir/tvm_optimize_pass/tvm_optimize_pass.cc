@@ -34,7 +34,7 @@ void TVMOptimizePass::ApplyImpl(ir::Graph* graph) const {
       fusion_group::ElementwiseGroupDetector()(graph);
   std::vector<fusion_group::SubGraph> subgraphs;
   size_t min_subgraph_size = 2;
-  bool save_intermediate_out = true;
+  bool save_intermediate_out = false;
   int index = 0;
   for (auto& vec : potential_subgraphs) {
     if (vec.size() >= min_subgraph_size) {
@@ -79,12 +79,6 @@ tvm::relay::Function TVMOptimizePass::ConvertToTVMRelay(
           }
         }
       }
-      // Assume we only has one output currently. It's OK in elementwise ops.
-      std::string out_var_name = n->outputs[0]->Name();
-      std::string op_name = GetTVMOpName(n->Op()->Type());
-      auto relay_op = tvm::relay::Op::Get(op_name);
-      var_name_to_expr[out_var_name] =
-          tvm::relay::CallNode::make(relay_op, inputs, tvm::Attrs(), {});
 
       // get schedule
       auto reg = tvm::runtime::Registry::Get("relay.op._Register");
@@ -95,11 +89,38 @@ tvm::relay::Function TVMOptimizePass::ConvertToTVMRelay(
       if (!s_i) {
         PADDLE_THROW("no schedule _Register");
       }
-      (*reg)(op_name, "FTVMSchedule", *s_i, 10);
+      for (auto* out_var : n->outputs) {
+        if (out_var && out_var->IsVar() && out_var->Var()) {
+          std::string out_var_name = out_var->Name();
+          std::string op_name = GetTVMOpName(n->Op()->Type());
+          std::string suffix = "_grad";
+          size_t pos = op_name.rfind(suffix);
+          if (pos != std::string::npos) {
+            std::string op_type = op_name.substr(pos);
+            // forward op
+            auto relay_op = tvm::relay::Op::Get(op_type);
+            // if op is grad op, it has inputs X, Y, out, out_grad
+            std::vector<tvm::relay::Expr> inputs_to_forward_op{inputs[0]};
+            auto call = tvm::relay::CallNode::make(
+                relay_op, inputs_to_forward_op, tvm::Attrs(), {});
+            auto forward_func = tvm::relay::FunctionNode::make(
+                tvm::relay::FreeVars(call), call, tvm::relay::Type(), {});
+            auto grad_func = tvm::runtime::Registry::Get(
+                "relay._transform.first_order_gradient");
+            var_name_to_expr[out_var_name] = tvm::relay::CallNode::make(
+                grad_func->operator()(forward_func), inputs, tvm::Attrs(), {});
+            (*reg)(op_type, "FTVMSchedule", *s_i, 10);
+          } else {
+            auto relay_op = tvm::relay::Op::Get(op_name);
+            var_name_to_expr[out_var_name] =
+                tvm::relay::CallNode::make(relay_op, inputs, tvm::Attrs(), {});
+            (*reg)(op_name, "FTVMSchedule", *s_i, 10);
+          }
+        }
+      }
     }
   }
 
-  // Assume we only has one output currently
   auto out_expr = var_name_to_expr.at(output_vars_of_subgraph[0]->Name());
   auto func = tvm::relay::FunctionNode::make(tvm::relay::FreeVars(out_expr),
                                              out_expr, tvm::relay::Type(), {});
@@ -116,7 +137,7 @@ void TVMOptimizePass::InsertTVMOp(Graph* graph,
   std::unordered_set<Node*> external_nodes;
 
   OpDesc op_desc;
-  op_desc.SetType("tvm_op");
+  op_desc.SetType("tvm");
 
   std::vector<std::string> input_names;
   for (auto* n : input_vars_of_subgraph) {
@@ -179,7 +200,12 @@ tvm::runtime::DataType TVMOptimizePass::GetTVMDataType(
 }
 
 std::string TVMOptimizePass::GetTVMOpName(std::string op_type) const {
-  return "conv2d";
+  auto iter = convert_map_.find(op_type);
+  if (iter != convert_map_.end()) {
+    return iter->second;
+  } else {
+    PADDLE_THROW("Unsupported op type when creating TVM relay op.");
+  }
 }
 
 }  // namespace ir

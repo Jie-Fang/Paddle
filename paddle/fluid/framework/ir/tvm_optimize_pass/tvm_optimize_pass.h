@@ -17,6 +17,7 @@ limitations under the License. */
 #include <tvm/relay/expr.h>
 #include <tvm/runtime/data_type.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "paddle/fluid/framework/ir/fusion_group/subgraph.h"
 #include "paddle/fluid/framework/ir/pass.h"
@@ -37,6 +38,24 @@ class TVMOptimizePass : public Pass {
   std::string GenerateCode(tvm::relay::Function func) const;
   void InsertTVMOp(Graph* graph, fusion_group::SubGraph* subgraph,
                    tvm::relay::Function func) const;
+
+  const std::unordered_map<std::string, std::string> convert_map_ = {
+      {"relu", "relu"},
+      {"relu_grad", "relu"},
+      {"sigmoid", "sigmoid"},
+      {"sigmoid_grad", "sigmoid"},
+      {"tanh", "tanh"},
+      {"tanh_grad", "tanh"},
+      {"elementwise_add", "add"},
+      {"elementwise_add_grad", "add"},
+      {"elementwise_sub", "subtract"},
+      {"elementwise_sub_grad", "subtract"},
+      {"elementwise_mul", "multiply"},
+      {"elementwise_mul_grad", "multiply"},
+      {"elementwise_min", "maximum"},
+      {"elementwise_min_grad", "maximum"},
+      {"elementwise_max", "minimum"},
+      {"elementwise_max_grad", "minimum"}};
 };
 
 }  // namespace ir
